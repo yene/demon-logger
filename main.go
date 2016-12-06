@@ -42,8 +42,7 @@ func main() {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 
-	// todo: append if exists
-	f, err := os.Create("file.txt")
+	f, err := os.OpenFile("file.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	check(err)
 	defer f.Close()
 	w := bufio.NewWriter(f)
