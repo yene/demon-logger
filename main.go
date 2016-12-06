@@ -2,10 +2,8 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/textproto"
@@ -35,10 +33,6 @@ func main() {
 	}
 	defer conn.Close()
 
-	var buffer bytes.Buffer
-
-	check(err)
-
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 
@@ -46,6 +40,9 @@ func main() {
 	check(err)
 	defer f.Close()
 	w := bufio.NewWriter(f)
+
+	t := time.Now().Format("2006-01-02 15:04:05")
+	fmt.Fprintln(w, t+" Connected to "+*host)
 
 	flushticker := time.NewTicker(time.Second * time.Duration(*interval))
 	go func() {
@@ -80,9 +77,6 @@ func main() {
 		line, _ := tp.ReadLine()
 		fmt.Fprintln(w, line)
 		fmt.Println(line)
-		buffer.WriteString(line + "\n")
-		err := ioutil.WriteFile("test", buffer.Bytes(), 0644)
-		check(err)
 	}
 }
 
