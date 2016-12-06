@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/textproto"
 	"os"
+	"os/signal"
 	"time"
 )
 
@@ -19,22 +20,16 @@ func init() {
 
 const PORT = "1039"
 
-var duration = flag.Int("duration", 2, "How long the app runs in days.")
+var age = flag.Int("age", 2, "How long the app runs in days.")
+var host = flag.String("host", "127.0.0.1", "Host IP")
+var interval = flag.Int("flush", 3600, "Flush interval in seconds")
 
 func main() {
 	flag.Parse()
-
-	expiretimer := time.NewTimer(time.Hour * 24 * time.Duration(*duration))
-	go func() {
-		<-expiretimer.C
-		println("Logger expired after days:", duration)
-		os.Exit(0)
-	}()
-
-	host := flag.Arg(0)
-	conn, err := net.Dial("tcp", host+":"+PORT)
+	// TODO: loop over do manual retry, block with a channel
+	// http://stackoverflow.com/questions/23395519/reconnect-tcp-on-eof-in-go
+	conn, err := net.Dial("tcp", *host+":"+PORT)
 	if err != nil {
-		// handle error
 		log.Println("Could not connect to demon", err)
 		os.Exit(1)
 	}
@@ -47,17 +42,38 @@ func main() {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 
+	// todo: append if exists
 	f, err := os.Create("file.txt")
 	check(err)
 	defer f.Close()
 	w := bufio.NewWriter(f)
 
-	flushticker := time.NewTicker(time.Hour)
+	flushticker := time.NewTicker(time.Second * time.Duration(*interval))
 	go func() {
 		for t := range flushticker.C {
 			fmt.Println("Writting file to disk at", t)
 			err := w.Flush()
 			check(err)
+		}
+	}()
+
+	expiretimer := time.NewTimer(time.Hour * 24 * time.Duration(*age))
+	go func() {
+		<-expiretimer.C
+		err := w.Flush()
+		check(err)
+		println("Logger expired after days:", *age)
+		os.Exit(0)
+	}()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			err := w.Flush()
+			check(err)
+			println("Stopping because of interrupt", sig)
+			os.Exit(1)
 		}
 	}()
 
