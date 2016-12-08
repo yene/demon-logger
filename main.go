@@ -17,6 +17,7 @@ func init() {
 }
 
 const PORT = "1039"
+const FILENAME = "log.txt"
 
 var age = flag.Int("age", 2, "How long the app runs in days.")
 var host = flag.String("host", "127.0.0.1", "Host IP")
@@ -26,17 +27,27 @@ func main() {
 	flag.Parse()
 	// TODO: loop over do manual retry, block with a channel
 	// http://stackoverflow.com/questions/23395519/reconnect-tcp-on-eof-in-go
-	conn, err := net.Dial("tcp", *host+":"+PORT)
-	if err != nil {
-		log.Println("Could not connect to demon", err)
-		os.Exit(1)
+	errCh := make(chan error)
+	for {
+		conn, err := net.Dial("tcp", *host+":"+PORT)
+		if err != nil {
+			log.Println("Could not connect to demon", err)
+		} else {
+			readLog(conn, errCh)
+			err = <-errCh
+			log.Println("Error", err)
+			conn.Close()
+		}
+		log.Println("retrying in 10 seconds")
+		time.Sleep(30 * time.Second)
 	}
-	defer conn.Close()
+}
 
+func readLog(conn net.Conn, errCh chan error) {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 
-	f, err := os.OpenFile("file.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(FILENAME, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	check(err)
 	defer f.Close()
 	w := bufio.NewWriter(f)
@@ -72,7 +83,6 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-
 	for {
 		line, _ := tp.ReadLine()
 		fmt.Fprintln(w, line)
