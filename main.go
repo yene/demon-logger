@@ -28,10 +28,12 @@ var interval = flag.Int("flush", 3600, "Flush interval in seconds")
 
 func main() {
 	handleCtrlC()
+	_ = os.Remove(filename)
 	flag.Parse()
 	errCh := make(chan error)
+	tcpAddr, _ := net.ResolveTCPAddr("tcp", *host+":"+port)
 	for {
-		conn, err := net.Dial("tcp", *host+":"+port)
+		conn, err := net.DialTCP("tcp", nil, tcpAddr)
 		if err != nil {
 			log.Println("Could not connect to demon", err)
 		} else {
@@ -80,6 +82,8 @@ func readLog(conn net.Conn, errCh chan<- error) {
 		for {
 			select {
 			case <-expiretimer.C:
+				t := time.Now().Format("2006-01-02 15:04:05")
+				fmt.Fprintln(w, t+" Logger expired.")
 				err := w.Flush()
 				check(err)
 				fmt.Println("Logger expired after days:", *age)
@@ -94,6 +98,8 @@ func readLog(conn net.Conn, errCh chan<- error) {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			errCh <- errors.New("Could not read from the conncetion: " + err.Error())
+			t := time.Now().Format("2006-01-02 15:04:05")
+			fmt.Fprintln(w, t+" Closing connection to demon.")
 			err := w.Flush()
 			check(err)
 			quit <- true
