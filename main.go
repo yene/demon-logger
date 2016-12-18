@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -17,8 +18,9 @@ func init() {
 	log.SetFlags(log.Lshortfile)
 }
 
-const PORT = "1039"
-const FILENAME = "log.txt"
+const port = "1039"
+const filename = "log.txt"
+const retryInterval = 5
 
 var age = flag.Int("age", 2, "How long the app runs in days.")
 var host = flag.String("host", "127.0.0.1", "Host IP")
@@ -26,11 +28,9 @@ var interval = flag.Int("flush", 3600, "Flush interval in seconds")
 
 func main() {
 	flag.Parse()
-	// TODO: loop over do manual retry, block with a channel
-	// http://stackoverflow.com/questions/23395519/reconnect-tcp-on-eof-in-go
 	errCh := make(chan error)
 	for {
-		conn, err := net.Dial("tcp", *host+":"+PORT)
+		conn, err := net.Dial("tcp", *host+":"+port)
 		if err != nil {
 			log.Println("Could not connect to demon", err)
 		} else {
@@ -38,20 +38,20 @@ func main() {
 			kaConn.SetKeepAliveIdle(30 * time.Second)
 			kaConn.SetKeepAliveCount(4)
 			kaConn.SetKeepAliveInterval(5 * time.Second)
-			readLog(conn, errCh)
-			err = <-errCh
-			log.Println("Error", err)
+			go readLog(conn, errCh)
+			readErr := <-errCh
+			log.Println("Error", readErr)
 			conn.Close()
 		}
-		log.Println("retrying in 10 seconds")
-		time.Sleep(30 * time.Second)
+		log.Println("retrying in", retryInterval, "seconds")
+		time.Sleep(retryInterval * time.Second)
 	}
 }
 
-func readLog(conn net.Conn, errCh chan error) {
+func readLog(conn net.Conn, errCh chan<- error) {
 	reader := bufio.NewReader(conn)
 
-	f, err := os.OpenFile(FILENAME, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	check(err)
 	defer f.Close()
 	w := bufio.NewWriter(f)
@@ -73,7 +73,7 @@ func readLog(conn net.Conn, errCh chan error) {
 		<-expiretimer.C
 		err := w.Flush()
 		check(err)
-		println("Logger expired after days:", *age)
+		fmt.Println("Logger expired after days:", *age)
 		os.Exit(0)
 	}()
 
@@ -87,10 +87,12 @@ func readLog(conn net.Conn, errCh chan error) {
 			os.Exit(1)
 		}
 	}()
+
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
-			log.Println("Could not connect to demon", err)
+			errCh <- errors.New("Could not read from the conncetion: " + err.Error())
+			return
 		}
 		fmt.Fprintln(w, line)
 		fmt.Println(line)
