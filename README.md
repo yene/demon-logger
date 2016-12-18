@@ -1,5 +1,5 @@
 # demon-logger
-A small app that connects to a TCP service and logs the result into file.
+Connects to a TCP service and logs the result into file.
 
 `./demon-logger -host 192.168.1.47`
 
@@ -12,3 +12,6 @@ I am not sure if the keepalive package works perfectly, but it is good enough.
 * [Debug go routines](http://stackoverflow.com/a/19145992/279890)
 * [tcp keepalive](https://github.com/felixge/tcpkeepalive)
 * [How to kill children](http://stackoverflow.com/a/6807784/279890)
+
+### License
+MIT
