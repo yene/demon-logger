@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/textproto"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/felixge/tcpkeepalive"
 )
 
 func init() {
@@ -33,6 +34,10 @@ func main() {
 		if err != nil {
 			log.Println("Could not connect to demon", err)
 		} else {
+			kaConn, _ := tcpkeepalive.EnableKeepAlive(conn)
+			kaConn.SetKeepAliveIdle(30 * time.Second)
+			kaConn.SetKeepAliveCount(4)
+			kaConn.SetKeepAliveInterval(5 * time.Second)
 			readLog(conn, errCh)
 			err = <-errCh
 			log.Println("Error", err)
@@ -45,7 +50,6 @@ func main() {
 
 func readLog(conn net.Conn, errCh chan error) {
 	reader := bufio.NewReader(conn)
-	tp := textproto.NewReader(reader)
 
 	f, err := os.OpenFile(FILENAME, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	check(err)
@@ -84,7 +88,10 @@ func readLog(conn net.Conn, errCh chan error) {
 		}
 	}()
 	for {
-		line, _ := tp.ReadLine()
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			log.Println("Could not connect to demon", err)
+		}
 		fmt.Fprintln(w, line)
 		fmt.Println(line)
 	}
