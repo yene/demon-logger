@@ -27,6 +27,7 @@ var host = flag.String("host", "127.0.0.1", "Host IP")
 var interval = flag.Int("flush", 3600, "Flush interval in seconds")
 
 func main() {
+	handleCtrlC()
 	flag.Parse()
 	errCh := make(chan error)
 	for {
@@ -49,6 +50,7 @@ func main() {
 }
 
 func readLog(conn net.Conn, errCh chan<- error) {
+	quit := make(chan bool) // quit channels tells the sub go routines to stop
 	reader := bufio.NewReader(conn)
 
 	f, err := os.OpenFile(filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
@@ -61,30 +63,30 @@ func readLog(conn net.Conn, errCh chan<- error) {
 
 	flushticker := time.NewTicker(time.Second * time.Duration(*interval))
 	go func() {
-		for t := range flushticker.C {
-			fmt.Println("Writting file to disk at", t)
-			err := w.Flush()
-			check(err)
+		for {
+			select {
+			case <-flushticker.C:
+				fmt.Println("Writting file to disk at", t)
+				err := w.Flush()
+				check(err)
+			case <-quit:
+				return
+			}
 		}
 	}()
 
 	expiretimer := time.NewTimer(time.Hour * 24 * time.Duration(*age))
 	go func() {
-		<-expiretimer.C
-		err := w.Flush()
-		check(err)
-		fmt.Println("Logger expired after days:", *age)
-		os.Exit(0)
-	}()
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for sig := range c {
-			err := w.Flush()
-			check(err)
-			println("Stopping because of interrupt", sig)
-			os.Exit(1)
+		for {
+			select {
+			case <-expiretimer.C:
+				err := w.Flush()
+				check(err)
+				fmt.Println("Logger expired after days:", *age)
+				os.Exit(0)
+			case <-quit:
+				return
+			}
 		}
 	}()
 
@@ -92,6 +94,9 @@ func readLog(conn net.Conn, errCh chan<- error) {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			errCh <- errors.New("Could not read from the conncetion: " + err.Error())
+			err := w.Flush()
+			check(err)
+			quit <- true
 			return
 		}
 		fmt.Fprintln(w, line)
@@ -103,4 +108,16 @@ func check(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+// handleCtrlC quits the process, without closing the file.
+func handleCtrlC() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			println("Stopping because of interrupt", sig)
+			os.Exit(1)
+		}
+	}()
 }
