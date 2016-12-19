@@ -3,6 +3,9 @@ Connects to a TCP service and logs the result into file.
 
 `./demon-logger -host 192.168.1.47`
 
+### Build for ARM
+`env GOOS=linux GOARCH=arm GOARM=7 go build -o "demon-logger-arm"`
+
 ### keep alive
 It can not be determined without a ping/keepalive if the network is still working. As solution use the keepalive package or SetReadDeadline.
 I am not sure if the keepalive package works perfectly, but it is good enough.

@@ -105,8 +105,8 @@ func readLog(conn net.Conn, errCh chan<- error) {
 			quit <- true
 			return
 		}
-		fmt.Fprintln(w, line)
-		fmt.Println(line)
+		fmt.Fprint(w, line)
+		fmt.Print(line)
 	}
 }
 
