@@ -24,11 +24,12 @@ const retryInterval = 5
 
 var age = flag.Int("age", 2, "How long the app runs in days.")
 var host = flag.String("host", "127.0.0.1", "Host IP")
-var interval = flag.Int("flush", 3600, "Flush interval in seconds")
+var interval = flag.Int("flush", 3600, "Write to disk interval in seconds")
 
 func main() {
 	handleCtrlC()
-	_ = os.Remove(filename)
+	t := time.Now().Format("2006-01-02 15:04:05")
+	_ = os.Rename(filename, "log "+t+".txt")
 	flag.Parse()
 	errCh := make(chan error)
 	tcpAddr, _ := net.ResolveTCPAddr("tcp", *host+":"+port)
