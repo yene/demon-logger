@@ -1,7 +1,21 @@
 # demon-logger
 Connects to a TCP service and logs the result into file.
 
-`./demon-logger -host 192.168.1.47`
+[Download](https://github.com/yene/demon-logger/releases/latest)
+
+Example, run for 5 days and write capture to file every 5 minutes.
+`./demon-logger-osx -host 127.0.0.1 -flush 300 -age 5`
+
+```
+Usage of ./demon-logger-osx:
+  -age int
+        How long the app runs in days. (default 2)
+  -flush int
+        Write to disk interval in seconds (default 3600)
+  -host string
+        Host IP (default "127.0.0.1")
+```
+
 
 ### Build for ARM
 `env GOOS=linux GOARCH=arm GOARM=7 go build -o "demon-logger-arm"`
