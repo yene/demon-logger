@@ -1,11 +1,12 @@
 # demon-logger
-Connects to a TCP service and logs the result into file.
+Connects to a TCP service and logs the result into file. [Download](https://github.com/yene/demon-logger/releases/latest)
 
-[Download](https://github.com/yene/demon-logger/releases/latest)
 
 Example, run for 5 days and write capture to file every 5 minutes.
+
 `./demon-logger-osx -host 127.0.0.1 -flush 300 -age 5`
 
+### Help
 ```
 Usage of ./demon-logger-osx:
   -age int
