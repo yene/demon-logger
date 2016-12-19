@@ -2,7 +2,7 @@
 Connects to a TCP service and logs the result into file. [Download](https://github.com/yene/demon-logger/releases/latest)
 
 
-Example, run for 5 days and write capture to file every 5 minutes.
+Example, run for 5 days and write to file every 5 minutes.
 
 `./demon-logger-osx -host 127.0.0.1 -flush 300 -age 5`
 
@@ -12,7 +12,7 @@ Usage of ./demon-logger-osx:
   -age int
         How long the app runs in days. (default 2)
   -flush int
-        Write to disk interval in seconds (default 3600)
+        Write to disk interval in seconds (default 300)
   -host string
         Host IP (default "127.0.0.1")
 ```
